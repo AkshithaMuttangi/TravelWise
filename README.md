@@ -4,27 +4,92 @@ TravelWise is a travel management system designed to efficiently plan and manage
 
 Note: This project was initially developed collaboratively with a peer as part of a course project. This repository represents my personal version, where I implemented and refined features individually.
 
+TravelWise is a fully normalized travel management system developed to demonstrate strong fundamentals in DBMS design, relational modeling, and analytical SQL querying.
+The project models real-world travel planning by allowing users to manage trips, itineraries, expenses, budgets, companions, and city guides in a secure and structured database environment.
+
+Project Context:
+This project was initially developed collaboratively as part of an academic DBMS course.
+This repository represents my individual implementation, where I structured the database schema, implemented SQL queries, and refined system design independently.
+
+Core Objectives
+
+Apply database normalization principles to eliminate redundancy
+
+Design a robust relational schema using primary–foreign key relationships
+
+Implement meaningful analytical SQL queries for real-world use cases
+
+Ensure data integrity, security, and query efficiency
+
 Key Features
 
-Create, edit, and view trip plans
+Admin & User Management
 
-Store trip details in a database
+Admins can add, update, and remove users
 
-Search and filter trips easily
+Secure access with role-based privileges and unique email constraints
 
-Responsive user interface
+Trip Management
 
-Skills Demonstrated
+Users can create and manage trips with:
 
-Frontend: HTML, CSS, JavaScript
+Itineraries
 
-Backend: [Node.js ]
+Transport details
 
-Database: [MySQL ]
+Accommodation records
+
+Expenses and budgets
+
+Expense & Budget Tracking
+
+Tracks planned vs actual expenses
+
+Supports analytical queries for expense summaries and budget analysis
+
+Companion Management
+
+Dedicated Companion table to track people accompanying a trip
+
+Reduces ambiguity in expense sharing by clearly mapping who participated
+
+City Guide Integration
+
+Stores important places and ratings for each travel destination
+
+Database Design Highlights
+
+Fully normalized schema (up to 3NF)
+
+Clear entity–relationship mapping
+
+Enforced referential integrity using foreign keys
+
+Indexed attributes for faster query execution
+
+| Entity             | Description                                                   |
+| ------------------ | ------------------------------------------------------------- |
+| **Admin**          | Manages users                                                 |
+| **User**           | Creates trips; managed by an admin                            |
+| **Trip**           | Represents a travel plan; belongs to a user                   |
+| **Itinerary_Item** | Scheduled activities per day/time                             |
+| **Expense**        | Records all trip expenses                                     |
+| **Transport**      | Travel arrangements for a trip                                |
+| **Accommodation**  | Stay details during the trip                                  |
+| **Budget**         | Planned vs actual expense tracking                            |
+| **Companion**      | People accompanying the user; enables shared expense tracking |
+| **City_Guide**     | Important places and ratings for destinations                 |
+
+
+STechnologies Used
+
+Database: MySQL
+
+Query Language: SQL
+
+Concepts: Normalization, ER Modeling, Constraints, Indexing
 
 Version Control: Git & GitHub
-
-Refined UI and optimized code for scalability and maintainability
 
 
 Installation / Usage
