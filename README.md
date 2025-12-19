@@ -18,19 +18,15 @@ Skills Demonstrated
 
 Frontend: HTML, CSS, JavaScript
 
-Backend: [Node.js / Java / PHP / Python]
+Backend: [Node.js ]
 
-Database: [MySQL / SQLite / Firebase]
+Database: [MySQL ]
 
 Version Control: Git & GitHub
 
-My Contributions in This Repository
-
-Developed [your specific features, e.g., frontend pages, backend API, DB schema]
-
-Implemented [any particular functionality, e.g., search/filter, CRUD operations]
-
 Refined UI and optimized code for scalability and maintainability
+
+
 Installation / Usage
 
 Clone the repository:
