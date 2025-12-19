@@ -81,8 +81,9 @@ Indexed attributes for faster query execution
 | **City_Guide**     | Important places and ratings for destinations                 |
 
 
-STechnologies Used
-
+Technologies Used
+Frontend - HTML , CSS ,JS
+Backend - Node.Js , Express.Js
 Database: MySQL
 
 Query Language: SQL
