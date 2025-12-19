@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Companions · Travelwise</title>
+  <link rel="stylesheet" href="styles/theme.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-content">
+      <header class="page-header">
+        <div class="brand">
+          <div class="brand-icon">👥</div>
+          <div>
+            <p class="brand-title">Travel companions</p>
+            <p class="brand-subtitle">Balances, payouts and contact info in a friendly palette</p>
+          </div>
+        </div>
+        <nav class="quick-nav">
+          <a href="trip-details.html">Trip details</a>
+          <a href="companion.html" class="active">Companions</a>
+          <a href="expenses.html">Expenses</a>
+          <a href="budget.html">Budget</a>
+        </nav>
+        <div class="hero-actions">
+          <button class="btn btn-secondary" id="addCompanion">Invite companion</button>
+          <a class="btn btn-ghost" href="trip-details.html">Back to trip</a>
+        </div>
+      </header>
+
+      <section class="hero-panel">
+        <div class="hero-content">
+          <p class="brand-subtitle">Keep the crew aligned</p>
+          <h2>Share costs transparently</h2>
+          <p>Green tiles highlight who owes what, making settlements easier after every adventure.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" onclick="window.location.href='expenses.html'">Open expense log</button>
+            <button class="btn btn-secondary" onclick="window.location.href='city-guide.html'">City highlights</button>
+          </div>
+        </div>
+        <div class="insights-grid">
+          <div class="insight-card">
+            <p class="insight-label">Companions</p>
+            <p class="insight-value" id="companionCount">--</p>
+            <p class="insight-meta">On this trip</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Total paid</p>
+            <p class="insight-value" id="totalPaid">--</p>
+            <p class="insight-meta">Covered costs</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Total owed</p>
+            <p class="insight-value" id="totalOwed">--</p>
+            <p class="insight-meta">Still to balance</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="error" class="error-banner"></div>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Companion roster</h2>
+          <span class="chip">Contact ready</span>
+        </div>
+        <div id="companionTable" class="loading-state">Loading companion data...</div>
+      </article>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Contribution summary</h2>
+          <span class="chip success">Live totals</span>
+        </div>
+        <div id="companionSummary" class="loading-state">Calculating contributions...</div>
+      </article>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('addCompanion').addEventListener('click', () => {
+      alert('Companion invites are coming soon. For now, manage them via your admin dashboard.');
+    });
+
+    // Check if user is logged in
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    // Get trip_id from localStorage
+    const tripId = localStorage.getItem('currentTripId');
+    if (!tripId) {
+      window.location.href = 'trips.html';
+    }
+
+    const companionTable = document.getElementById('companionTable');
+    const companionSummary = document.getElementById('companionSummary');
+    const errorBanner = document.getElementById('error');
+    const companionCountEl = document.getElementById('companionCount');
+    const totalPaidEl = document.getElementById('totalPaid');
+    const totalOwedEl = document.getElementById('totalOwed');
+
+    const formatCurrency = value =>
+      `₹${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    // Load companion data
+    async function loadCompanions() {
+      try {
+        const [companionResponse, summaryResponse] = await Promise.all([
+          fetch(`http://localhost:5000/api/trip/${tripId}/companions`),
+          fetch(`http://localhost:5000/api/trip/${tripId}/companion-summary`)
+        ]);
+
+        const companions = await companionResponse.json();
+        const summary = await summaryResponse.json();
+
+        if (!companionResponse.ok) {
+          throw new Error(companions.error || 'Failed to load companion data');
+        }
+
+        if (!companions.length) {
+          companionCountEl.textContent = totalPaidEl.textContent = totalOwedEl.textContent = '--';
+          companionTable.innerHTML = '<div class="empty-state">No companions found for this trip.</div>';
+          companionSummary.innerHTML = '<div class="empty-state">Invite companions to see contribution stats.</div>';
+          return;
+        }
+
+        companionCountEl.textContent = summary.companion_count || companions.length;
+        totalPaidEl.textContent = formatCurrency(summary.total_paid_by_all || 0);
+        totalOwedEl.textContent = formatCurrency(summary.total_owed || 0);
+
+        companionTable.innerHTML = `
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Relation</th>
+                  <th>Total paid</th>
+                  <th>Amount owed</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${companions.map(comp => `
+                  <tr>
+                    <td>${comp.name}</td>
+                    <td>${comp.email}</td>
+                    <td>${comp.phone}</td>
+                    <td>${comp.relation}</td>
+                    <td>${formatCurrency(comp.total_paid)}</td>
+                    <td>${formatCurrency(comp.amount_owed)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        companionSummary.innerHTML = `
+          <div class="insights-grid">
+            <div class="insight-card">
+              <p class="insight-label">Companion count</p>
+              <p class="insight-value">${summary.companion_count || companions.length}</p>
+              <p class="insight-meta">Active travellers</p>
+            </div>
+            <div class="insight-card">
+              <p class="insight-label">Paid in total</p>
+              <p class="insight-value">${formatCurrency(summary.total_paid_by_all || 0)}</p>
+              <p class="insight-meta">Contributions logged</p>
+            </div>
+            <div class="insight-card">
+              <p class="insight-label">Still owed</p>
+              <p class="insight-value">${formatCurrency(summary.total_owed || 0)}</p>
+              <p class="insight-meta">Settle up reminder</p>
+            </div>
+          </div>
+        `;
+      } catch (error) {
+        showError(error.message || 'Error connecting to server');
+        console.error('Error:', error);
+      }
+    }
+
+    function showError(message) {
+      errorBanner.textContent = message;
+      errorBanner.classList.add('show');
+      companionTable.innerHTML = '<div class="loading-state">Error loading companion data</div>';
+      companionSummary.innerHTML = '<div class="loading-state">Unable to summarise companions</div>';
+    }
+
+    // Load data on page load
+    loadCompanions();
+  </script>
+</body>
+</html>

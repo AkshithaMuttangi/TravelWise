@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trip Details · Travelwise</title>
+  <link rel="stylesheet" href="styles/theme.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-content">
+      <header class="page-header">
+        <div class="brand">
+          <div class="brand-icon">📋</div>
+          <div>
+            <p class="brand-title">Trip Control Centre</p>
+            <p class="brand-subtitle">Switch between views without losing context</p>
+          </div>
+        </div>
+        <nav class="quick-nav">
+          <a href="dashboard.html">Dashboard</a>
+          <a href="trips.html">Trips</a>
+          <a href="trip-details.html" class="active">Trip details</a>
+          <a href="expenses.html">Expenses</a>
+        </nav>
+        <a class="btn btn-ghost" href="trips.html">Back to trips</a>
+      </header>
+
+      <section class="hero-panel">
+        <div class="hero-content">
+          <h2 id="tripName">Loading trip details...</h2>
+          <p>Review itinerary, lodging, budgets and companions. Everything links from one hub for faster decisions.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" onclick="navigateTo('accommodation.html')">Open accommodation</button>
+            <button class="btn btn-secondary" onclick="navigateTo('expenses.html')">View expenses</button>
+          </div>
+        </div>
+        <div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <p class="stat-label">Trip ID</p>
+              <p class="stat-value" id="statTripId">--</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-label">Duration</p>
+              <p class="stat-value" id="statDuration">--</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-label">Owner</p>
+              <p class="stat-value" id="statOwner">--</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div id="error" class="error-banner"></div>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Itinerary snapshot</h2>
+          <span class="chip">Live data</span>
+        </div>
+        <div id="tripInfo" class="loading-state">Loading details...</div>
+      </article>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Jump to workspace</h2>
+          <span class="chip">Quick links</span>
+        </div>
+        <div class="buttons-grid">
+          <button class="btn btn-primary" onclick="navigateTo('accommodation.html')">🏨 Accommodation</button>
+          <button class="btn btn-secondary" onclick="navigateTo('transport.html')">🚗 Transport</button>
+          <button class="btn btn-secondary" onclick="navigateTo('expenses.html')">💰 Expenses</button>
+          <button class="btn btn-secondary" onclick="navigateTo('budget.html')">📊 Budget</button>
+          <button class="btn btn-secondary" onclick="navigateTo('companion.html')">👥 Companions</button>
+          <button class="btn btn-secondary" onclick="navigateTo('city-guide.html')">🗺️ City Guide</button>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <script>
+    // Check if user is logged in
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    // Get trip_id from localStorage
+    const tripId = localStorage.getItem('currentTripId');
+    if (!tripId) {
+      window.location.href = 'trips.html';
+    }
+
+    const tripName = document.getElementById('tripName');
+    const tripInfo = document.getElementById('tripInfo');
+    const errorDiv = document.getElementById('error');
+    const statTripId = document.getElementById('statTripId');
+    const statDuration = document.getElementById('statDuration');
+    const statOwner = document.getElementById('statOwner');
+
+    // Load trip details
+    async function loadTripDetails() {
+      try {
+        const response = await fetch(`http://localhost:5000/api/trip/${tripId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load trip details');
+        }
+
+        tripName.textContent = `🌍 ${data.trip_name}`;
+
+        const startDate = new Date(data.start_date);
+        const endDate = new Date(data.end_date);
+
+        statTripId.textContent = data.trip_id;
+        statDuration.textContent = `${startDate.toLocaleDateString()} → ${endDate.toLocaleDateString()}`;
+        statOwner.textContent = data.user_name;
+
+        tripInfo.innerHTML = `
+          <div class="split-layout">
+            <div class="list-card">
+              <div>
+                <p class="stat-label">Destination</p>
+                <strong>${data.destination}</strong>
+              </div>
+              <span class="chip">${data.user_name}</span>
+            </div>
+            <div class="list-card">
+              <div>
+                <p class="stat-label">Travel window</p>
+                <strong>${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</strong>
+              </div>
+              <span class="chip success">${Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)))} days</span>
+            </div>
+            <div class="list-card">
+              <div>
+                <p class="stat-label">User contact</p>
+                <strong>${data.user_email || user.email}</strong>
+              </div>
+              <span class="status-warning">Keep handy</span>
+            </div>
+          </div>
+        `;
+      } catch (error) {
+        showError(error.message || 'Error connecting to server');
+        console.error('Error:', error);
+      }
+    }
+
+    function showError(message) {
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      tripInfo.innerHTML = '<div class="loading">Error loading trip details</div>';
+    }
+
+    function navigateTo(page) {
+      window.location.href = page;
+    }
+
+    loadTripDetails();
+  </script>
+</body>
+</html>

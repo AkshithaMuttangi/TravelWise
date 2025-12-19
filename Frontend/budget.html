@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget · Travelwise</title>
+  <link rel="stylesheet" href="styles/theme.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-content">
+      <header class="page-header">
+        <div class="brand">
+          <div class="brand-icon">📊</div>
+          <div>
+            <p class="brand-title">Budget cockpit</p>
+            <p class="brand-subtitle">Plan, track and rebalance each category in seconds</p>
+          </div>
+        </div>
+        <nav class="quick-nav">
+          <a href="trip-details.html">Trip details</a>
+          <a href="expenses.html">Expenses</a>
+          <a href="budget.html" class="active">Budget</a>
+          <a href="dashboard.html">Dashboard</a>
+        </nav>
+        <div class="hero-actions">
+          <a class="btn btn-secondary" href="expenses.html">View expenses</a>
+          <a class="btn btn-ghost" href="trip-details.html">Back to trip</a>
+        </div>
+      </header>
+
+      <section class="hero-panel">
+        <div class="hero-content">
+          <p class="brand-subtitle">Stay ahead of spend</p>
+          <h2>Watch every rupee with calm greens</h2>
+          <p>Compare planned versus actual spend, spot overshoots, and jump to any workspace without leaving the budget lens.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="shareBudget">Share budget snapshot</button>
+            <button class="btn btn-secondary" onclick="window.location.href='companion.html'">View companions</button>
+          </div>
+        </div>
+        <div class="insights-grid">
+          <div class="insight-card">
+            <p class="insight-label">Total planned</p>
+            <p class="insight-value" id="plannedTotal">--</p>
+            <p class="insight-meta">Across all categories</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Total actual</p>
+            <p class="insight-value" id="actualTotal">--</p>
+            <p class="insight-meta">Recorded spend</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Variance</p>
+            <p class="insight-value" id="differenceValue">--</p>
+            <p class="insight-meta" id="differenceMeta">Awaiting data</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="error" class="error-banner"></div>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Budget breakdown</h2>
+          <span class="chip">Live sync</span>
+        </div>
+        <div id="budgetTable" class="loading-state">Loading budget data...</div>
+      </article>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Aggregated view</h2>
+          <span class="chip success">Grouped totals</span>
+        </div>
+        <div id="budgetAggregate" class="loading-state">Compiling grouped view...</div>
+      </article>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('shareBudget').addEventListener('click', () => {
+      alert('Sharing coming soon! For now, export data as CSV from your dashboard.');
+    });
+
+    // Check if user is logged in
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    // Get trip_id from localStorage
+    const tripId = localStorage.getItem('currentTripId');
+    if (!tripId) {
+      window.location.href = 'trips.html';
+    }
+
+    const plannedTotal = document.getElementById('plannedTotal');
+    const actualTotal = document.getElementById('actualTotal');
+    const differenceValue = document.getElementById('differenceValue');
+    const differenceMeta = document.getElementById('differenceMeta');
+    const budgetTable = document.getElementById('budgetTable');
+    const budgetAggregate = document.getElementById('budgetAggregate');
+    const errorBanner = document.getElementById('error');
+
+    const formatCurrency = (value = 0) =>
+      `₹${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    // Load budget data
+    async function loadBudget() {
+      try {
+        const [budgetResponse, vsActualResponse] = await Promise.all([
+          fetch(`http://localhost:5000/api/trip/${tripId}/budget`),
+          fetch(`http://localhost:5000/api/trip/${tripId}/budget-vs-actual`)
+        ]);
+
+        const budget = await budgetResponse.json();
+        const vsActual = await vsActualResponse.json();
+
+        if (!budgetResponse.ok) {
+          throw new Error(budget.error || 'Failed to load budget data');
+        }
+
+        if (!budget.length) {
+          plannedTotal.textContent = actualTotal.textContent = differenceValue.textContent = '--';
+          differenceMeta.textContent = 'No budget rows yet';
+          budgetTable.innerHTML = '<div class="empty-state">No budget data found for this trip.</div>';
+          budgetAggregate.innerHTML = '<div class="empty-state">Add budget rows to see grouped totals.</div>';
+          return;
+        }
+
+        const totalPlanned = budget.reduce((sum, b) => sum + parseFloat(b.planned_amt || 0), 0);
+        const totalActual = budget.reduce((sum, b) => sum + parseFloat(b.actual_amt || 0), 0);
+        const difference = totalPlanned - totalActual;
+        plannedTotal.textContent = formatCurrency(totalPlanned);
+        actualTotal.textContent = formatCurrency(totalActual);
+        differenceValue.textContent = formatCurrency(Math.abs(difference));
+        differenceMeta.textContent = difference >= 0 ? 'Under budget' : 'Over budget';
+        differenceMeta.className = `insight-meta ${difference >= 0 ? 'status-success' : 'status-danger'}`;
+
+        budgetTable.innerHTML = `
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Planned amount</th>
+                  <th>Actual amount</th>
+                  <th>Variance</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${budget.map(item => {
+                  const diff = parseFloat(item.planned_amt || 0) - parseFloat(item.actual_amt || 0);
+                  const status = diff >= 0 ? 'chip success' : 'chip danger';
+                  const label = diff >= 0 ? 'Saved' : 'Overspent';
+                  return `
+                    <tr>
+                      <td>${item.category}</td>
+                      <td>${formatCurrency(item.planned_amt)}</td>
+                      <td>${formatCurrency(item.actual_amt)}</td>
+                      <td>
+                        <span class="${status}">
+                          ${label} ${formatCurrency(Math.abs(diff))}
+                        </span>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        if (vsActual.length) {
+          budgetAggregate.innerHTML = `
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Total planned</th>
+                    <th>Total actual</th>
+                    <th>Difference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${vsActual.map(item => {
+                    const diff = parseFloat(item.difference || 0);
+                    const label = diff >= 0 ? 'Saved' : 'Overspent';
+                    const status = diff >= 0 ? 'chip success' : 'chip warning';
+                    return `
+                      <tr>
+                        <td>${item.category}</td>
+                        <td>${formatCurrency(item.total_planned || 0)}</td>
+                        <td>${formatCurrency(item.total_actual || 0)}</td>
+                        <td><span class="${status}">${label} ${formatCurrency(Math.abs(diff))}</span></td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        } else {
+          budgetAggregate.innerHTML = '<div class="empty-state">No grouped aggregates yet.</div>';
+        }
+      } catch (error) {
+        showError(error.message || 'Error connecting to server');
+        console.error('Error:', error);
+      }
+    }
+
+    function showError(message) {
+      errorBanner.textContent = message;
+      errorBanner.classList.add('show');
+      budgetTable.innerHTML = '<div class="loading-state">Error loading budget data</div>';
+      budgetAggregate.innerHTML = '<div class="loading-state">Unable to load grouped view</div>';
+    }
+
+    // Load data on page load
+    loadBudget();
+  </script>
+</body>
+</html>

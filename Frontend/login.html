@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Travelwise Login</title>
+  <style>
+    :root {
+      --mint: #d9f4f3;
+      --sky: #e9f3fb;
+      --deep-sky: #8ab7c8;
+      --mountain-1: #9db7b5;
+      --mountain-2: #648080;
+      --mountain-3: #203f46;
+      --pine: #0b2f30;
+      --accent: #0f4d5a;
+      --accent-dark: #082e36;
+      --glow: rgba(255, 255, 255, 0.7);
+      --text: #102326;
+      --muted: rgba(16, 35, 38, 0.6);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top, var(--mint), #bde1e5 55%, #90bcc4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: var(--text);
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.35), transparent 45%),
+                  radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.4), transparent 60%);
+      z-index: 0;
+    }
+
+    .main-stage {
+      width: min(1200px, 95vw);
+      min-height: 600px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(255,255,255,0.65));
+      border-radius: 32px;
+      box-shadow: 0 50px 100px rgba(7, 59, 76, 0.25), inset 0 0 0 1px rgba(255,255,255,0.4);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      overflow: hidden;
+      position: relative;
+    }
+
+    .artwork {
+      position: relative;
+      background: linear-gradient(180deg, var(--sky), #c9e0eb 40%, #7ca1a7 100%);
+      padding: 32px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .artwork::before,
+    .artwork::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-repeat: no-repeat;
+      background-size: cover;
+      opacity: 0.9;
+    }
+
+    .artwork::before {
+      background-image:
+        linear-gradient(135deg, rgba(255,255,255,0.3), transparent 60%),
+        linear-gradient(0deg, rgba(0,0,0,0.1), transparent 35%);
+    }
+
+    .mountains {
+      position: absolute;
+      inset: 0;
+    }
+
+    .mountains span {
+      position: absolute;
+      bottom: 0;
+      width: 140%;
+      height: 60%;
+      border-radius: 50%;
+      transform: translateX(-20%);
+      box-shadow: inset 0 30px 80px rgba(0,0,0,0.15);
+    }
+
+    .mountains .layer-1 {
+      background: var(--mountain-1);
+      bottom: 0;
+      animation: float 14s ease-in-out infinite;
+    }
+
+    .mountains .layer-2 {
+      background: var(--mountain-2);
+      bottom: -5%;
+      animation: float 20s ease-in-out infinite reverse;
+    }
+
+    .mountains .layer-3 {
+      background: var(--mountain-3);
+      bottom: -15%;
+      animation: float 26s ease-in-out infinite;
+    }
+
+    .pine {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+
+    .pine div {
+      width: 80px;
+      height: 180px;
+      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.2), rgba(11,47,48,0.85));
+      clip-path: polygon(50% 0%, 70% 25%, 60% 25%, 80% 50%, 65% 50%, 88% 75%, 62% 75%, 85% 100%, 15% 100%, 38% 75%, 12% 75%, 35% 50%, 20% 50%, 40% 25%, 30% 25%);
+      opacity: 0.85;
+    }
+
+    .sun {
+      position: absolute;
+      top: 60px;
+      right: 80px;
+      width: 110px;
+      height: 110px;
+      background: radial-gradient(circle, rgba(255,255,255,0.95), rgba(255,255,255,0.1));
+      border-radius: 50%;
+      box-shadow: 0 0 60px rgba(255,255,255,0.7);
+      animation: pulse 6s ease-in-out infinite;
+    }
+
+    .birds {
+      position: absolute;
+      top: 35%;
+      right: 18%;
+      display: flex;
+      gap: 16px;
+    }
+
+    .birds span {
+      width: 28px;
+      height: 14px;
+      border-top: 3px solid rgba(8,46,54,0.7);
+      border-radius: 50%;
+      transform: rotate(-10deg);
+      animation: glide 8s linear infinite;
+    }
+
+    .auth-panel {
+      position: relative;
+      padding: min(60px, 6vw);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top right, rgba(255,255,255,0.65), rgba(255,255,255,0.35));
+    }
+
+    .glass-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 40px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 26px;
+      box-shadow: 0 25px 60px rgba(6, 41, 49, 0.18), inset 0 0 0 1px rgba(255,255,255,0.4);
+      backdrop-filter: blur(15px);
+      animation: lift 0.8s ease forwards;
+    }
+
+    .card-header {
+      margin-bottom: 26px;
+    }
+
+    .eyebrow {
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-top: 6px;
+      font-size: 15px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-dark);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      position: relative;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(15, 77, 90, 0.15);
+      background: rgba(255,255,255,0.9);
+      font-size: 15px;
+      color: var(--accent-dark);
+      transition: border 0.2s, box-shadow 0.2s;
+    }
+
+    input::placeholder {
+      color: rgba(8, 46, 54, 0.5);
+    }
+
+    input:focus {
+      outline: none;
+      border: 1px solid rgba(15, 77, 90, 0.4);
+      box-shadow: 0 0 0 4px rgba(15, 77, 90, 0.12);
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .form-row label {
+      margin: 0;
+      font-weight: 500;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .form-row a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .primary-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 16px;
+      background: linear-gradient(120deg, var(--accent), #0c6574);
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .primary-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 30px rgba(8, 46, 54, 0.25);
+    }
+
+    .primary-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.7;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 26px 0 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .divider span {
+      flex: 1;
+      height: 1px;
+      background: rgba(15, 77, 90, 0.2);
+    }
+
+    .google-btn {
+      width: 100%;
+      border: 1px solid rgba(15, 77, 90, 0.2);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.9);
+      padding: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: border 0.2s, box-shadow 0.2s;
+    }
+
+    .google-btn:hover {
+      border-color: rgba(15, 77, 90, 0.4);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    .switcher {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .switcher button {
+      border: none;
+      background: transparent;
+      color: var(--accent);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .status {
+      margin-top: 16px;
+      font-size: 13px;
+      text-align: center;
+      padding: 12px;
+      border-radius: 12px;
+      display: none;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .status.error {
+      background: rgba(228, 91, 94, 0.15);
+      color: #9b1c1f;
+    }
+
+    .status.success {
+      background: rgba(87, 181, 132, 0.18);
+      color: #0c6048;
+    }
+
+    .status.loading {
+      background: rgba(15, 77, 90, 0.1);
+      color: var(--accent);
+    }
+
+    @keyframes float {
+      0%,100% { transform: translate(-20%, 0); }
+      50% { transform: translate(-25%, 6px); }
+    }
+
+    @keyframes pulse {
+      0%,100% { transform: scale(0.95); opacity: 0.9; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
+
+    @keyframes glide {
+      0% { transform: translateX(0) rotate(-10deg); }
+      50% { transform: translateX(-20px) rotate(-5deg); }
+      100% { transform: translateX(0) rotate(-10deg); }
+    }
+
+    @keyframes lift {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 900px) {
+      .main-stage {
+        border-radius: 24px;
+      }
+
+      .artwork {
+        min-height: 280px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="main-stage">
+    <div class="artwork">
+      <div class="sun"></div>
+      <div class="birds">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <div class="mountains">
+        <span class="layer-1"></span>
+        <span class="layer-2"></span>
+        <span class="layer-3"></span>
+      </div>
+      <div class="pine">
+        <div></div>
+        <div></div>
+        <div></div>
+      </div>
+    </div>
+
+    <div class="auth-panel">
+      <div class="glass-card">
+        <div class="mode-switcher" role="tablist" aria-label="Choose form mode">
+          <button type="button" data-mode="login" class="active" aria-selected="true">Login</button>
+          <button type="button" data-mode="signup" aria-selected="false">Sign up</button>
+        </div>
+        <div class="card-header">
+          <p class="eyebrow" id="formModeLabel">Welcome back</p>
+          <h1>Welcome <span>👋</span></h1>
+          <p class="subtitle" id="formSubtitle">Login to access your Travelwise account</p>
+        </div>
+
+        <form id="authForm">
+          <div class="form-group" id="nameGroup" hidden>
+            <label for="name">Full Name</label>
+            <div class="form-control">
+              <input type="text" id="name" name="name" placeholder="Alex Wanderlust">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email address</label>
+            <div class="form-control">
+              <input type="email" id="email" name="email" placeholder="you@example.com" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div class="form-control">
+              <input type="password" id="password" name="password" placeholder="••••••••" required minlength="4">
+            </div>
+          </div>
+
+          <div class="form-row" id="rememberRow">
+            <label for="remember">
+              <input type="checkbox" id="remember">
+              <span>Remember me</span>
+            </label>
+            <a href="#">Forgot password?</a>
+          </div>
+
+          <button type="submit" class="primary-btn" id="submitBtn">Login</button>
+
+          <div class="divider">
+            <span></span>
+            <p>or continue with</p>
+            <span></span>
+          </div>
+
+          <button type="button" class="google-btn">
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" width="20" height="20">
+            Continue with Google
+          </button>
+
+          <div class="switcher">
+            <span id="toggleText">New here?</span>
+            <button type="button" id="toggleAction">Sign up</button>
+          </div>
+
+          <div class="status error" id="errorMessage" role="alert"></div>
+          <div class="status success" id="successMessage"></div>
+          <div class="status loading" id="loadingMessage">Preparing your journey...</div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const authForm = document.getElementById('authForm');
+    const nameGroup = document.getElementById('nameGroup');
+    const formModeLabel = document.getElementById('formModeLabel');
+    const formSubtitle = document.getElementById('formSubtitle');
+    const submitBtn = document.getElementById('submitBtn');
+    const toggleAction = document.getElementById('toggleAction');
+    const toggleText = document.getElementById('toggleText');
+    const rememberRow = document.getElementById('rememberRow');
+    const modeButtons = document.querySelectorAll('[data-mode]');
+
+    const errorMessage = document.getElementById('errorMessage');
+    const successMessage = document.getElementById('successMessage');
+    const loadingMessage = document.getElementById('loadingMessage');
+
+    let mode = 'login';
+
+    const hideStatus = () => {
+      [errorMessage, successMessage, loadingMessage].forEach(el => {
+        el.classList.remove('show');
+        if (el !== loadingMessage) el.textContent = '';
+      });
+    };
+
+    const setFormMode = nextMode => {
+      mode = nextMode;
+      hideStatus();
+      authForm.reset();
+      const isSignup = mode === 'signup';
+
+      formModeLabel.textContent = isSignup ? 'Hello explorer' : 'Welcome back';
+      formSubtitle.textContent = isSignup
+        ? 'Sign up to start planning unforgettable trips'
+        : 'Login to access your Travelwise account';
+      submitBtn.textContent = isSignup ? 'Create account' : 'Login';
+      toggleText.textContent = isSignup ? 'Already with us?' : 'New here?';
+      toggleAction.textContent = isSignup ? 'Back to login' : 'Sign up';
+      nameGroup.hidden = !isSignup;
+      rememberRow.style.display = isSignup ? 'none' : 'flex';
+      modeButtons.forEach(btn => {
+        const isActive = btn.dataset.mode === mode;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', String(isActive));
+      });
+    };
+
+    toggleAction.addEventListener('click', () => {
+      setFormMode(mode === 'login' ? 'signup' : 'login');
+    });
+
+    modeButtons.forEach(btn => {
+      btn.addEventListener('click', () => setFormMode(btn.dataset.mode));
+    });
+
+    const toggleLoading = (show, text) => {
+      if (show) {
+        loadingMessage.textContent = text;
+        loadingMessage.classList.add('show');
+        submitBtn.disabled = true;
+      } else {
+        loadingMessage.classList.remove('show');
+        submitBtn.disabled = false;
+      }
+    };
+
+    const showError = message => {
+      errorMessage.textContent = message;
+      errorMessage.classList.add('show');
+    };
+
+    const showSuccess = message => {
+      successMessage.textContent = message;
+      successMessage.classList.add('show');
+    };
+
+    authForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      hideStatus();
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const name = document.getElementById('name').value.trim();
+
+      if (mode === 'signup' && !name) {
+        return showError('Please tell us how to call you.');
+      }
+
+      toggleLoading(true, mode === 'signup' ? 'Creating your account...' : 'Logging you in...');
+
+      try {
+        const response = await fetch(`http://localhost:5000/api/${mode === 'signup' ? 'signup' : 'login'}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            mode === 'signup'
+              ? { name, email, password }
+              : { email, password }
+          )
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Something went wrong. Please try again.');
+        }
+
+        localStorage.setItem('user', JSON.stringify(data));
+
+        if (mode === 'signup') {
+          showSuccess('Account created! Taking you to your dashboard...');
+        }
+
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        toggleLoading(false);
+      }
+    });
+  </script>
+</body>
+</html>

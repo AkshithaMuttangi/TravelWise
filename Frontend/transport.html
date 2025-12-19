@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transport · Travelwise</title>
+  <link rel="stylesheet" href="styles/theme.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-content">
+      <header class="page-header">
+        <div class="brand">
+          <div class="brand-icon">🚗</div>
+          <div>
+            <p class="brand-title">Transport desk</p>
+            <p class="brand-subtitle">Planes, trains, cabs — all in a single green window</p>
+          </div>
+        </div>
+        <nav class="quick-nav">
+          <a href="trip-details.html">Trip details</a>
+          <a href="accommodation.html">Accommodation</a>
+          <a href="transport.html" class="active">Transport</a>
+          <a href="expenses.html">Expenses</a>
+        </nav>
+        <div class="hero-actions">
+          <button class="btn btn-secondary" id="addTransport">Add transport</button>
+          <a class="btn btn-ghost" href="trip-details.html">Back to trip</a>
+        </div>
+      </header>
+
+      <section class="hero-panel">
+        <div class="hero-content">
+          <p class="brand-subtitle">Keep journeys flowing</p>
+          <h2>Visualise routes and keep costs lean</h2>
+          <p>Review every hop with a mint gradient, compare modes, and catch expensive segments early.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" onclick="window.location.href='budget.html'">Compare with budget</button>
+            <button class="btn btn-secondary" onclick="window.location.href='expenses.html'">See expense log</button>
+          </div>
+        </div>
+        <div class="insights-grid">
+          <div class="insight-card">
+            <p class="insight-label">Total segments</p>
+            <p class="insight-value" id="segmentCount">--</p>
+            <p class="insight-meta">Flights, trains, rides</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Total cost</p>
+            <p class="insight-value" id="transportTotal">--</p>
+            <p class="insight-meta">All transport</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Average per leg</p>
+            <p class="insight-value" id="avgCost">--</p>
+            <p class="insight-meta">Quick benchmark</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="error" class="error-banner"></div>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Transport details</h2>
+          <span class="chip">Sorted by departure</span>
+        </div>
+        <div id="transportTable" class="loading-state">Loading transport data...</div>
+      </article>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Transport by mode</h2>
+          <span class="chip success">Aggregate view</span>
+        </div>
+        <div id="transportAggregate" class="loading-state">Calculating grouped totals...</div>
+      </article>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('addTransport').addEventListener('click', () => {
+      alert('Transport creation flow launching soon. Stay tuned!');
+    });
+
+    // Check if user is logged in
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    // Get trip_id from localStorage
+    const tripId = localStorage.getItem('currentTripId');
+    if (!tripId) {
+      window.location.href = 'trips.html';
+    }
+
+    const transportTable = document.getElementById('transportTable');
+    const transportAggregate = document.getElementById('transportAggregate');
+    const segmentCount = document.getElementById('segmentCount');
+    const transportTotal = document.getElementById('transportTotal');
+    const avgCost = document.getElementById('avgCost');
+    const errorBanner = document.getElementById('error');
+
+    const formatCurrency = value =>
+      `₹${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    // Load transport data
+    async function loadTransport() {
+      try {
+        const [transportResponse, aggregateResponse] = await Promise.all([
+          fetch(`http://localhost:5000/api/trip/${tripId}/transport`),
+          fetch(`http://localhost:5000/api/trip/${tripId}/transport-by-mode`)
+        ]);
+
+        const transportData = await transportResponse.json();
+        const aggregateData = await aggregateResponse.json();
+
+        if (!transportResponse.ok) {
+          throw new Error(transportData.error || 'Failed to load transport data');
+        }
+
+        if (!transportData.length) {
+          segmentCount.textContent = transportTotal.textContent = avgCost.textContent = '--';
+          transportTable.innerHTML = '<div class="empty-state">No transport data found for this trip.</div>';
+          transportAggregate.innerHTML = '<div class="empty-state">Grouped data appears once transport segments are added.</div>';
+          return;
+        }
+
+        const totalCost = transportData.reduce((sum, trans) => sum + parseFloat(trans.cost || 0), 0);
+        segmentCount.textContent = transportData.length;
+        transportTotal.textContent = formatCurrency(totalCost);
+        avgCost.textContent = formatCurrency(totalCost / transportData.length);
+
+        transportTable.innerHTML = `
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Mode</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Departure</th>
+                  <th>Arrival</th>
+                  <th>Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${transportData.map(trans => `
+                  <tr>
+                    <td>${trans.mode}</td>
+                    <td>${trans.from_location}</td>
+                    <td>${trans.to_location}</td>
+                    <td>${new Date(trans.dept_date).toLocaleDateString()}</td>
+                    <td>${new Date(trans.arrival_date).toLocaleDateString()}</td>
+                    <td>${formatCurrency(trans.cost)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        if (aggregateData.length) {
+          transportAggregate.innerHTML = `
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Mode</th>
+                    <th>Total cost</th>
+                    <th>Segments</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${aggregateData.map(item => `
+                    <tr>
+                      <td>${item.mode}</td>
+                      <td>${formatCurrency(item.total_cost || 0)}</td>
+                      <td>${item.trip_count}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        } else {
+          transportAggregate.innerHTML = '<div class="empty-state">No grouped mode information yet.</div>';
+        }
+      } catch (error) {
+        showError(error.message || 'Error connecting to server');
+        console.error('Error:', error);
+      }
+    }
+
+    function showError(message) {
+      errorBanner.textContent = message;
+      errorBanner.classList.add('show');
+      transportTable.innerHTML = '<div class="loading-state">Error loading transport data</div>';
+      transportAggregate.innerHTML = '<div class="loading-state">Unable to load aggregate view</div>';
+    }
+
+    // Load data on page load
+    loadTransport();
+  </script>
+</body>
+</html>

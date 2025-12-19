@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard · Travelwise</title>
+  <link rel="stylesheet" href="styles/theme.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-content">
+      <header class="page-header">
+        <div class="brand">
+          <div class="brand-icon">🌿</div>
+          <div>
+            <p class="brand-title">Travelwise</p>
+            <p class="brand-subtitle">Your journeys, perfectly organised</p>
+          </div>
+        </div>
+        <nav class="quick-nav">
+          <a href="dashboard.html" class="active">Dashboard</a>
+          <a href="trips.html">Trips</a>
+          <a href="expenses.html">Expenses</a>
+          <a href="budget.html">Budget</a>
+        </nav>
+        <button class="btn btn-ghost" onclick="logout()">Logout</button>
+      </header>
+
+      <section class="hero-panel">
+        <div class="hero-content">
+          <p class="brand-subtitle" id="heroGreeting">Loading your cockpit...</p>
+          <h2 id="heroTitle">Welcome back</h2>
+          <p>Track travellers, budgets and itineraries from one calming workspace. Use the quick links to jump straight to the area you need.</p>
+          <div class="hero-actions">
+            <a href="trips.html" class="btn btn-primary">Open My Trips</a>
+            <!--<a href="trip-details.html" class="btn btn-secondary">Review a Trip</a>-->
+          </div>
+        </div>
+        <div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <p class="stat-label">Total Trips</p>
+              <p class="stat-value" id="statTrips">--</p>
+              <span class="chip">Synced</span>
+            </div>
+            <div class="stat-card">
+              <p class="stat-label">Destinations</p>
+              <p class="stat-value" id="statDestinations">--</p>
+              <span class="chip success">Explored</span>
+            </div>
+            <div class="stat-card">
+              <p class="stat-label">Next Journey</p>
+              <p class="stat-value" id="statNextTrip">--</p>
+              <span class="chip warning" id="statNextLabel">Pending</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div id="error" class="error-banner"></div>
+
+      <div class="cards-grid">
+        <article class="card">
+          <div class="panel-title">
+            <h2>Profile Snapshot</h2>
+            <!--<span class="chip">Secure</span>-->
+          </div>
+          <div id="userData" class="loading-state">Gathering your traveller profile...</div>
+        </article>
+
+        <article class="card">
+          <div class="panel-title">
+            <h2>Upcoming Highlights</h2>
+            <div class="pill-nav">
+              <button class="active" id="timelineTab">Trips</button>
+            </div>
+          </div>
+          <div id="timeline" class="timeline">
+            <div class="loading-state">Scanning for itineraries...</div>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <div class="floating-actions">
+      <a class="btn btn-primary" href="trips.html">✈️ Manage trips</a>
+      <a class="btn btn-secondary" href="expenses.html">💳 Track expenses</a>
+    </div>
+  </div>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    const heroGreeting = document.getElementById('heroGreeting');
+    const heroTitle = document.getElementById('heroTitle');
+    const userData = document.getElementById('userData');
+    const timeline = document.getElementById('timeline');
+    const errorBanner = document.getElementById('error');
+    const statTrips = document.getElementById('statTrips');
+    const statDestinations = document.getElementById('statDestinations');
+    const statNextTrip = document.getElementById('statNextTrip');
+    const statNextLabel = document.getElementById('statNextLabel');
+
+    heroGreeting.textContent = `Signed in as ${user.email}`;
+    heroTitle.textContent = `Welcome back, ${user.name.split(' ')[0] || 'Explorer'}`;
+
+    function showError(message) {
+      errorBanner.textContent = message;
+      errorBanner.classList.add('show');
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return '--';
+      return new Date(dateString).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    async function loadDashboard() {
+      try {
+        const [userRes, tripsRes] = await Promise.all([
+          fetch(`http://localhost:5000/api/user/${user.user_id}`),
+          fetch(`http://localhost:5000/api/user/${user.user_id}/trips`)
+        ]);
+
+        const userDataJson = await userRes.json();
+        const tripsData = await tripsRes.json();
+
+        if (!userRes.ok) {
+          throw new Error(userDataJson.error || 'Unable to load user data');
+        }
+        if (!tripsRes.ok) {
+          throw new Error(tripsData.error || 'Unable to load trips');
+        }
+
+        renderProfile(userDataJson);
+        renderTrips(tripsData);
+      } catch (err) {
+        console.error(err);
+        showError(err.message || 'Something went wrong');
+        userData.innerHTML = '<div class="loading-state">Error loading profile.</div>';
+        timeline.innerHTML = '<div class="loading-state">Error loading trips.</div>';
+      }
+    }
+
+    function renderProfile(data) {
+      userData.innerHTML = `
+        <div class="split-layout">
+          <div class="list-card">
+            <div>
+              <p class="stat-label">User ID</p>
+              <strong>${data.user_id}</strong>
+            </div>
+            <span class="badge">Core</span>
+          </div>
+          <div class="list-card">
+            <div>
+              <p class="stat-label">Full Name</p>
+              <strong>${data.name}</strong>
+            </div>
+            <span class="status-success">Active</span>
+          </div>
+          <div class="list-card">
+            <div>
+              <p class="stat-label">Email</p>
+              <strong>${data.email}</strong>
+            </div>
+            <span class="status-success">Verified</span>
+          </div>
+          <div class="list-card">
+            <div>
+              <p class="stat-label">Phone</p>
+              <strong>${data.phone || '—'}</strong>
+            </div>
+            <span class="status-warning">Update</span>
+          </div>
+          <div class="list-card">
+            <div>
+              <p class="stat-label">Account Manager</p>
+              <strong>${data.admin_name || 'Not Assigned'}</strong>
+            </div>
+            <span class="chip">Support</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTrips(trips) {
+      statTrips.textContent = trips.length;
+      const destinations = new Set(trips.map(trip => trip.destination));
+      statDestinations.textContent = destinations.size;
+
+      if (!trips.length) {
+        statNextTrip.textContent = '--';
+        statNextLabel.textContent = 'Plan your next trip';
+        statNextLabel.classList.remove('warning');
+        statNextLabel.classList.add('success');
+        timeline.innerHTML = '<div class="empty-state">No trips yet. Tap “Manage trips” to start planning.</div>';
+        return;
+      }
+
+      const upcoming = trips
+        .map(trip => ({
+          ...trip,
+          start: new Date(trip.start_date),
+          end: new Date(trip.end_date)
+        }))
+        .sort((a, b) => a.start - b.start);
+
+      const nextTrip = upcoming.find(trip => trip.start >= new Date()) || upcoming[0];
+      statNextTrip.textContent = nextTrip ? formatDate(nextTrip.start_date) : '--';
+      statNextLabel.textContent = nextTrip ? nextTrip.destination : '—';
+
+      timeline.innerHTML = '';
+      upcoming.slice(0, 3).forEach(trip => {
+        const duration = `${formatDate(trip.start_date)} → ${formatDate(trip.end_date)}`;
+        const card = document.createElement('div');
+        card.className = 'timeline-item';
+        card.innerHTML = `
+          <div class="panel-title">
+            <strong>${trip.trip_name}</strong>
+            <span class="chip">${trip.destination}</span>
+          </div>
+          <p class="stat-label">${duration}</p>
+          <div class="mini-grid">
+            <span class="chip success">ID ${trip.trip_id}</span>
+            <span class="chip">Budget ready</span>
+          </div>
+        `;
+        card.addEventListener('click', () => {
+          localStorage.setItem('currentTripId', trip.trip_id);
+          window.location.href = 'trip-details.html';
+        });
+        timeline.appendChild(card);
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem('user');
+      window.location.href = 'login.html';
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

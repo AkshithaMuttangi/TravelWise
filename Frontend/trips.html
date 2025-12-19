@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Trips · Travelwise</title>
+  <link rel="stylesheet" href="styles/theme.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-content">
+      <header class="page-header">
+        <div class="brand">
+          <div class="brand-icon">🧭</div>
+          <div>
+            <p class="brand-title">Travelwise Trips</p>
+            <p class="brand-subtitle">Organise, compare and reopen journeys with ease</p>
+          </div>
+        </div>
+        <nav class="quick-nav">
+          <a href="dashboard.html">Dashboard</a>
+          <a href="trips.html" class="active">Trips</a>
+          <a href="trip-details.html">Trip details</a>
+          <a href="dashboard.html#support">Support</a>
+        </nav>
+        <a class="btn btn-ghost" href="dashboard.html">Back to dashboard</a>
+      </header>
+
+      <section class="hero-panel">
+        <div class="hero-content">
+          <h2>Every adventure in one lane</h2>
+          <p>Search destinations, check budgets and jump straight into the travel detail workspace.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="startPlanning">+ Plan fresh trip</button>
+            <a class="btn btn-secondary" href="trip-details.html">Open last viewed</a>
+          </div>
+        </div>
+        <div class="card">
+          <div class="panel-title">
+            <h2>Filters</h2>
+            <span class="chip">Live search</span>
+          </div>
+          <div class="filters-bar">
+            <input type="search" id="tripSearch" class="search-input" placeholder="Search by destination or trip name">
+            <select id="tripStatus" class="search-input">
+              <option value="all">All trips</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="past">Completed</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <div id="error" class="error-banner"></div>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>My Trips</h2>
+          <span class="chip" id="tripCounter">0 trips</span>
+        </div>
+        <div id="tripsList" class="loading-state">Loading trips...</div>
+      </article>
+    </div>
+
+    <div class="floating-actions">
+      <button class="btn btn-primary" id="fabPlan">✈️ Plan new</button>
+      <a class="btn btn-secondary" href="expenses.html">💳 Track expenses</a>
+    </div>
+  </div>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    const tripsList = document.getElementById('tripsList');
+    const errorDiv = document.getElementById('error');
+    const tripSearch = document.getElementById('tripSearch');
+    const tripStatus = document.getElementById('tripStatus');
+    const tripCounter = document.getElementById('tripCounter');
+    const startPlanning = document.getElementById('startPlanning');
+    const fabPlan = document.getElementById('fabPlan');
+
+    let tripsData = [];
+
+    startPlanning.addEventListener('click', () => alert('Trip creation flow coming soon!'));
+    fabPlan.addEventListener('click', () => alert('Trip creation flow coming soon!'));
+    tripSearch.addEventListener('input', filterTrips);
+    tripStatus.addEventListener('change', filterTrips);
+
+    function formatDate(value) {
+      if (!value) return '--';
+      return new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    async function loadTrips() {
+      try {
+        const response = await fetch(`http://localhost:5000/api/user/${user.user_id}/trips`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load trips');
+        }
+
+        tripsData = data;
+        tripCounter.textContent = `${tripsData.length} trip${tripsData.length === 1 ? '' : 's'}`;
+        filterTrips();
+      } catch (error) {
+        showError(error.message || 'Error connecting to server');
+        console.error('Error:', error);
+      }
+    }
+
+    function filterTrips() {
+      const query = tripSearch.value.toLowerCase();
+      const status = tripStatus.value;
+      const now = new Date();
+
+      const filtered = tripsData.filter(trip => {
+        const matchQuery =
+          trip.trip_name.toLowerCase().includes(query) ||
+          trip.destination.toLowerCase().includes(query);
+
+        let matchStatus = true;
+        if (status === 'upcoming') {
+          matchStatus = new Date(trip.start_date) > now;
+        } else if (status === 'past') {
+          matchStatus = new Date(trip.end_date) < now;
+        }
+
+        return matchQuery && matchStatus;
+      });
+
+      renderTrips(filtered);
+    }
+
+    function renderTrips(list) {
+      if (!list.length) {
+        tripsList.innerHTML = '<div class="empty-state">No trips match that filter.</div>';
+        return;
+      }
+
+      const grid = document.createElement('div');
+      grid.className = 'cards-grid';
+
+      list.forEach(trip => {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="panel-title">
+            <h2>${trip.trip_name}</h2>
+            <span class="chip">${trip.destination}</span>
+          </div>
+          <p class="stat-label">${formatDate(trip.start_date)} → ${formatDate(trip.end_date)}</p>
+          <div class="mini-grid">
+            <span class="chip success">ID ${trip.trip_id}</span>
+            <span class="chip">₹${parseFloat(trip.total_expenses || 0).toFixed(2)}</span>
+          </div>
+        `;
+        card.addEventListener('click', () => viewTripDetails(trip.trip_id));
+        grid.appendChild(card);
+      });
+
+      tripsList.innerHTML = '';
+      tripsList.appendChild(grid);
+    }
+
+    function viewTripDetails(tripId) {
+      localStorage.setItem('currentTripId', tripId);
+      window.location.href = 'trip-details.html';
+    }
+
+    function showError(message) {
+      errorDiv.textContent = message;
+      errorDiv.classList.add('show');
+      tripsList.innerHTML = '<div class="loading-state">Error loading trips</div>';
+    }
+
+    loadTrips();
+  </script>
+</body>
+</html>

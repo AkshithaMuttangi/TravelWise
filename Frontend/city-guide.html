@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>City Guide · Travelwise</title>
+  <link rel="stylesheet" href="styles/theme.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-content">
+      <header class="page-header">
+        <div class="brand">
+          <div class="brand-icon">🗺️</div>
+          <div>
+            <p class="brand-title">City highlights</p>
+            <p class="brand-subtitle">Curated spots with calm greens for easy scanning</p>
+          </div>
+        </div>
+        <nav class="quick-nav">
+          <a href="trip-details.html">Trip details</a>
+          <a href="city-guide.html" class="active">City guide</a>
+          <a href="companion.html">Companions</a>
+          <a href="transport.html">Transport</a>
+        </nav>
+        <div class="hero-actions">
+          <a class="btn btn-secondary" href="trip-details.html">Back to trip</a>
+        </div>
+      </header>
+
+      <section class="hero-panel">
+        <div class="hero-content">
+          <p class="brand-subtitle">Discover smarter</p>
+          <h2>Bookmark favourite places with a mint glow</h2>
+          <p>Compare ratings, opening hours and descriptions without leaving your planning workspace.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" onclick="window.location.href='expenses.html'">Plan spending</button>
+            <button class="btn btn-secondary" onclick="window.location.href='accommodation.html'">See stays nearby</button>
+          </div>
+        </div>
+        <div class="insights-grid">
+          <div class="insight-card">
+            <p class="insight-label">Total places</p>
+            <p class="insight-value" id="placeCount">--</p>
+            <p class="insight-meta">For this itinerary</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Average rating</p>
+            <p class="insight-value" id="avgRating">--</p>
+            <p class="insight-meta">Crowd favourites</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Top score</p>
+            <p class="insight-value" id="maxRating">--</p>
+            <p class="insight-meta">Highest rated spot</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Lowest score</p>
+            <p class="insight-value" id="minRating">--</p>
+            <p class="insight-meta">Still worth a peek?</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="error" class="error-banner"></div>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>City guide details</h2>
+          <span class="chip">Sorted by rating</span>
+        </div>
+        <div id="cityGuideTable" class="loading-state">Loading city guide data...</div>
+      </article>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Guide statistics</h2>
+          <span class="chip success">AVG · MAX · MIN · COUNT</span>
+        </div>
+        <div id="cityGuideSummary" class="loading-state">Crunching guide stats...</div>
+      </article>
+    </div>
+  </div>
+
+  <script>
+    // Check if user is logged in
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    // Get trip_id from localStorage
+    const tripId = localStorage.getItem('currentTripId');
+    if (!tripId) {
+      window.location.href = 'trips.html';
+    }
+
+    const cityGuideTable = document.getElementById('cityGuideTable');
+    const cityGuideSummary = document.getElementById('cityGuideSummary');
+    const errorBanner = document.getElementById('error');
+    const placeCount = document.getElementById('placeCount');
+    const avgRating = document.getElementById('avgRating');
+    const maxRating = document.getElementById('maxRating');
+    const minRating = document.getElementById('minRating');
+
+    // Load city guide data
+    async function loadCityGuides() {
+      try {
+        const [cityGuideResponse, statsResponse] = await Promise.all([
+          fetch(`http://localhost:5000/api/trip/${tripId}/city-guides`),
+          fetch(`http://localhost:5000/api/trip/${tripId}/city-guide-stats`)
+        ]);
+
+        const cityGuides = await cityGuideResponse.json();
+        const stats = await statsResponse.json();
+
+        if (!cityGuideResponse.ok) {
+          throw new Error(cityGuides.error || 'Failed to load city guide data');
+        }
+
+        if (!cityGuides.length) {
+          placeCount.textContent = avgRating.textContent = maxRating.textContent = minRating.textContent = '--';
+          cityGuideTable.innerHTML = '<div class="empty-state">No city guide data found for this trip.</div>';
+          cityGuideSummary.innerHTML = '<div class="empty-state">Statistics will appear after adding guides.</div>';
+          return;
+        }
+
+        placeCount.textContent = stats.total_places || cityGuides.length;
+        avgRating.textContent = `${Number(stats.avg_rating || 0).toFixed(1)} ⭐`;
+        maxRating.textContent = `${Number(stats.max_rating || 0).toFixed(1)} ⭐`;
+        minRating.textContent = `${Number(stats.min_rating || 0).toFixed(1)} ⭐`;
+
+        cityGuideTable.innerHTML = `
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>City</th>
+                  <th>Place</th>
+                  <th>Description</th>
+                  <th>Rating</th>
+                  <th>Opening hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cityGuides.map(guide => `
+                  <tr>
+                    <td>${guide.city_name}</td>
+                    <td>${guide.place_name}</td>
+                    <td>${guide.description}</td>
+                    <td><span class="chip">${Number(guide.rating).toFixed(1)} ⭐</span></td>
+                    <td>${guide.opening_hours}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        cityGuideSummary.innerHTML = `
+          <div class="insights-grid">
+            <div class="insight-card">
+              <p class="insight-label">Total places</p>
+              <p class="insight-value">${stats.total_places || cityGuides.length}</p>
+              <p class="insight-meta">Across all cities</p>
+            </div>
+            <div class="insight-card">
+              <p class="insight-label">Average rating</p>
+              <p class="insight-value">${Number(stats.avg_rating || 0).toFixed(2)}</p>
+              <p class="insight-meta">Quality benchmark</p>
+            </div>
+            <div class="insight-card">
+              <p class="insight-label">Maximum rating</p>
+              <p class="insight-value">${Number(stats.max_rating || 0).toFixed(2)}</p>
+              <p class="insight-meta">Top pick</p>
+            </div>
+            <div class="insight-card">
+              <p class="insight-label">Minimum rating</p>
+              <p class="insight-value">${Number(stats.min_rating || 0).toFixed(2)}</p>
+              <p class="insight-meta">Needs review</p>
+            </div>
+          </div>
+        `;
+      } catch (error) {
+        showError(error.message || 'Error connecting to server');
+        console.error('Error:', error);
+      }
+    }
+
+    function showError(message) {
+      errorBanner.textContent = message;
+      errorBanner.classList.add('show');
+      cityGuideTable.innerHTML = '<div class="loading-state">Error loading city guide data</div>';
+      cityGuideSummary.innerHTML = '<div class="loading-state">Unable to load statistics</div>';
+    }
+
+    // Load data on page load
+    loadCityGuides();
+  </script>
+</body>
+</html>

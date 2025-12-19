@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accommodation · Travelwise</title>
+  <link rel="stylesheet" href="styles/theme.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-content">
+      <header class="page-header">
+        <div class="brand">
+          <div class="brand-icon">🏨</div>
+          <div>
+            <p class="brand-title">Stay Planner</p>
+            <p class="brand-subtitle">Track every check-in, checkout and cost in one view</p>
+          </div>
+        </div>
+        <nav class="quick-nav">
+          <a href="trip-details.html">Trip details</a>
+          <a href="accommodation.html" class="active">Accommodation</a>
+          <a href="transport.html">Transport</a>
+          <a href="expenses.html">Expenses</a>
+        </nav>
+        <a class="btn btn-ghost" href="trip-details.html">Back to trip</a>
+      </header>
+
+      <section class="hero-panel">
+        <div class="hero-content">
+          <h2>Comfortable stays, zero guesswork</h2>
+          <p>Compare hotels, view total spend, and jump straight into the booking card you need.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="addStay">+ Add stay</button>
+            <button class="btn btn-secondary" onclick="navigateTo('budget.html')">Review budget</button>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <p class="stat-label">Total stays</p>
+            <p class="stat-value" id="statStays">--</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Total cost</p>
+            <p class="stat-value" id="statCost">--</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Avg / night</p>
+            <p class="stat-value" id="statAvg">--</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="error" class="error-banner"></div>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Accommodation details</h2>
+          <span class="chip">Synced with itinerary</span>
+        </div>
+        <div id="accommodationData" class="loading-state">Loading accommodation data...</div>
+      </article>
+    </div>
+  </div>
+
+  <script>
+    // Check if user is logged in
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    // Get trip_id from localStorage
+    const tripId = localStorage.getItem('currentTripId');
+    if (!tripId) {
+      window.location.href = 'trips.html';
+    }
+
+    const accommodationData = document.getElementById('accommodationData');
+    const errorDiv = document.getElementById('error');
+    const statStays = document.getElementById('statStays');
+    const statCost = document.getElementById('statCost');
+    const statAvg = document.getElementById('statAvg');
+    const addStay = document.getElementById('addStay');
+
+    addStay.addEventListener('click', () => alert('Stay creation flow coming soon!'));
+
+    // Load accommodation data
+    async function loadAccommodation() {
+      try {
+        const response = await fetch(`http://localhost:5000/api/trip/${tripId}/accommodations`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load accommodation data');
+        }
+
+        if (data.length === 0) {
+          statStays.textContent = '0';
+          statCost.textContent = '₹0';
+          statAvg.textContent = '₹0';
+          accommodationData.innerHTML = '<div class="empty-state">No accommodation data found for this trip.</div>';
+          return;
+        }
+
+        const totalCost = data.reduce((sum, acc) => sum + parseFloat(acc.cost || 0), 0);
+        const count = data.length;
+        const nights = data.reduce((sum, acc) => {
+          const checkIn = new Date(acc.check_in);
+          const checkOut = new Date(acc.check_out);
+          return sum + Math.max(1, Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
+        }, 0);
+
+        statStays.textContent = count;
+        statCost.textContent = `₹${totalCost.toFixed(2)}`;
+        statAvg.textContent = nights ? `₹${(totalCost / nights).toFixed(2)}` : '₹0';
+
+        const table = document.createElement('table');
+        table.className = 'data-table';
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Location</th>
+              <th>Check-in</th>
+              <th>Check-out</th>
+              <th>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(acc => {
+              const checkIn = new Date(acc.check_in).toLocaleDateString();
+              const checkOut = new Date(acc.check_out).toLocaleDateString();
+              return `
+                <tr>
+                  <td>${acc.name}</td>
+                  <td>${acc.location}</td>
+                  <td>${checkIn}</td>
+                  <td>${checkOut}</td>
+                  <td>₹${parseFloat(acc.cost || 0).toFixed(2)}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        `;
+
+        accommodationData.innerHTML = '';
+        accommodationData.appendChild(table);
+      } catch (error) {
+        showError(error.message || 'Error connecting to server');
+        console.error('Error:', error);
+      }
+    }
+
+    function showError(message) {
+      errorDiv.textContent = message;
+      errorDiv.classList.add('show');
+      accommodationData.innerHTML = '<div class="loading-state">Error loading accommodation data</div>';
+    }
+
+    function navigateTo(page) {
+      window.location.href = page;
+    }
+
+    loadAccommodation();
+  </script>
+</body>
+</html>

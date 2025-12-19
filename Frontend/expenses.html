@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expenses · Travelwise</title>
+  <link rel="stylesheet" href="styles/theme.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-content">
+      <header class="page-header">
+        <div class="brand">
+          <div class="brand-icon">💳</div>
+          <div>
+            <p class="brand-title">Expense radar</p>
+            <p class="brand-subtitle">See spending trends at a glance and dive into details instantly</p>
+          </div>
+        </div>
+        <nav class="quick-nav">
+          <a href="trip-details.html">Trip details</a>
+          <a href="budget.html">Budget</a>
+          <a href="expenses.html" class="active">Expenses</a>
+          <a href="transport.html">Transport</a>
+        </nav>
+        <div class="hero-actions">
+          <a class="btn btn-secondary" href="budget.html">Compare against budget</a>
+          <a class="btn btn-ghost" href="trip-details.html">Back to trip</a>
+        </div>
+      </header>
+
+      <section class="hero-panel">
+        <div class="hero-content">
+          <p class="brand-subtitle">Healthy finances, happier trips</p>
+          <h2>Track every swipe with a green glow</h2>
+          <p>Use the live search and filters to surface any expense instantly. Grouped summaries keep overspending in check.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="exportExpenses">Export ledger</button>
+            <button class="btn btn-secondary" onclick="window.location.href='city-guide.html'">City guide tips</button>
+          </div>
+        </div>
+        <div class="insights-grid">
+          <div class="insight-card">
+            <p class="insight-label">Total expenses</p>
+            <p class="insight-value" id="totalExpenses">--</p>
+            <p class="insight-meta">Current trip</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Transactions</p>
+            <p class="insight-value" id="transactionCount">--</p>
+            <p class="insight-meta">Entries logged</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Categories</p>
+            <p class="insight-value" id="categoryCount">--</p>
+            <p class="insight-meta">Group insights</p>
+          </div>
+          <div class="insight-card">
+            <p class="insight-label">Payment methods</p>
+            <p class="insight-value" id="paymentCount">--</p>
+            <p class="insight-meta">Ways you paid</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="error" class="error-banner"></div>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Expense ledger</h2>
+          <span class="chip">Chronological</span>
+        </div>
+        <div class="filters-bar">
+          <input type="search" id="expenseSearch" class="search-input" placeholder="Search by description or category">
+          <select id="paymentFilter" class="search-input">
+            <option value="all">All payment methods</option>
+          </select>
+        </div>
+        <div id="expensesTable" class="loading-state">Loading expenses data...</div>
+      </article>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Expenses by category</h2>
+          <span class="chip success">SUM & COUNT</span>
+        </div>
+        <div id="categoryBreakdown" class="loading-state">Aggregating categories...</div>
+      </article>
+
+      <article class="card">
+        <div class="panel-title">
+          <h2>Payment method insights</h2>
+          <span class="chip">Payment mix</span>
+        </div>
+        <div id="paymentBreakdown" class="loading-state">Summarising payments...</div>
+      </article>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('exportExpenses').addEventListener('click', () => {
+      alert('Export coming soon! For now, copy data to your spreadsheet tool.');
+    });
+
+    // Check if user is logged in
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    // Get trip_id from localStorage
+    const tripId = localStorage.getItem('currentTripId');
+    if (!tripId) {
+      window.location.href = 'trips.html';
+    }
+
+    const expenseSearch = document.getElementById('expenseSearch');
+    const paymentFilter = document.getElementById('paymentFilter');
+    const expensesTable = document.getElementById('expensesTable');
+    const categoryBreakdown = document.getElementById('categoryBreakdown');
+    const paymentBreakdown = document.getElementById('paymentBreakdown');
+    const totalExpensesEl = document.getElementById('totalExpenses');
+    const transactionCountEl = document.getElementById('transactionCount');
+    const categoryCountEl = document.getElementById('categoryCount');
+    const paymentCountEl = document.getElementById('paymentCount');
+    const errorBanner = document.getElementById('error');
+
+    let expensesList = [];
+
+    const formatCurrency = value =>
+      `₹${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    expenseSearch.addEventListener('input', () => renderExpenses());
+    paymentFilter.addEventListener('change', () => renderExpenses());
+
+    // Load expenses data
+    async function loadExpenses() {
+      try {
+        const [expensesResponse, categoryResponse, paymentResponse] = await Promise.all([
+          fetch(`http://localhost:5000/api/trip/${tripId}/expenses`),
+          fetch(`http://localhost:5000/api/trip/${tripId}/expenses-by-category`),
+          fetch(`http://localhost:5000/api/trip/${tripId}/expenses-by-payment`)
+        ]);
+
+        const expenses = await expensesResponse.json();
+        const categoryData = await categoryResponse.json();
+        const paymentData = await paymentResponse.json();
+
+        if (!expensesResponse.ok) {
+          throw new Error(expenses.error || 'Failed to load expenses data');
+        }
+
+        if (!expenses.length) {
+          expensesTable.innerHTML = '<div class="empty-state">No expenses found for this trip.</div>';
+          categoryBreakdown.innerHTML = '<div class="empty-state">Add expenses to see category insights.</div>';
+          paymentBreakdown.innerHTML = '<div class="empty-state">Payment summary will appear here once data exists.</div>';
+          totalExpensesEl.textContent = transactionCountEl.textContent = categoryCountEl.textContent = paymentCountEl.textContent = '--';
+          return;
+        }
+
+        expensesList = expenses;
+        const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+        totalExpensesEl.textContent = formatCurrency(totalExpenses);
+        transactionCountEl.textContent = expenses.length;
+        categoryCountEl.textContent = categoryData.length || new Set(expenses.map(exp => exp.category)).size;
+        paymentCountEl.textContent = paymentData.length || new Set(expenses.map(exp => exp.payment_method)).size;
+
+        const methods = Array.from(new Set(expenses.map(exp => exp.payment_method))).sort();
+        paymentFilter.innerHTML = '<option value="all">All payment methods</option>' +
+          methods.map(method => `<option value="${method}">${method}</option>`).join('');
+
+        renderExpenses();
+
+        if (categoryData.length) {
+          categoryBreakdown.innerHTML = `
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Total amount</th>
+                    <th>Expense count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${categoryData.map(item => `
+                    <tr>
+                      <td>${item.category}</td>
+                      <td>${formatCurrency(item.total_amount || 0)}</td>
+                      <td>${item.expense_count}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        } else {
+          categoryBreakdown.innerHTML = '<div class="empty-state">No grouped data yet.</div>';
+        }
+
+        if (paymentData.length) {
+          paymentBreakdown.innerHTML = `
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Payment method</th>
+                    <th>Total amount</th>
+                    <th>Transactions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${paymentData.map(item => `
+                    <tr>
+                      <td>${item.payment_method}</td>
+                      <td>${formatCurrency(item.total_amount || 0)}</td>
+                      <td>${item.transaction_count}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        } else {
+          paymentBreakdown.innerHTML = '<div class="empty-state">No payment method breakdown yet.</div>';
+        }
+      } catch (error) {
+        showError(error.message || 'Error connecting to server');
+        console.error('Error:', error);
+      }
+    }
+
+    function renderExpenses() {
+      if (!expensesList.length) return;
+      const query = expenseSearch.value.trim().toLowerCase();
+      const payment = paymentFilter.value;
+
+      const filtered = expensesList.filter(expense => {
+        const matchesQuery =
+          !query ||
+          expense.category.toLowerCase().includes(query) ||
+          expense.description.toLowerCase().includes(query);
+        const matchesPayment = payment === 'all' || expense.payment_method === payment;
+        return matchesQuery && matchesPayment;
+      });
+
+      if (!filtered.length) {
+        expensesTable.innerHTML = '<div class="empty-state">No expenses match your filters.</div>';
+        return;
+      }
+
+      expensesTable.innerHTML = `
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Payment method</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.map(exp => `
+                <tr>
+                  <td>${exp.category}</td>
+                  <td>${exp.description}</td>
+                  <td>${formatCurrency(exp.amount)}</td>
+                  <td>${new Date(exp.date).toLocaleDateString()}</td>
+                  <td>${exp.payment_method}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function showError(message) {
+      errorBanner.textContent = message;
+      errorBanner.classList.add('show');
+      expensesTable.innerHTML = '<div class="loading-state">Error loading expenses data</div>';
+      categoryBreakdown.innerHTML = '<div class="loading-state">Unable to load category breakdown</div>';
+      paymentBreakdown.innerHTML = '<div class="loading-state">Unable to load payment insights</div>';
+    }
+
+    // Load data on page load
+    loadExpenses();
+  </script>
+</body>
+</html>
