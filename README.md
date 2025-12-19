@@ -35,7 +35,7 @@ Installation / Usage
 
 Clone the repository:
 
-git clone https://github.com/your-username/TravelWise.git
+git clone https://github.com/AkshithaMuttangi/TravelWise.git
 
 
 Navigate to the project folder:
